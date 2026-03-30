@@ -73,12 +73,7 @@
         function up() {
             const fa = document.getElementById('fA').value, fm = document.getElementById('fM').value, 
                   fr = document.getElementById('fR').value, fn = document.getElementById('fN').value.toLowerCase();
-            let filtered = data.filter(d => 
-                (fa==='all'||d['AÑO'].toString()===fa) && 
-                (fm==='all'||d['MES'].toString()===fm) && 
-                (fr==='all'||d['REGIONAL'].toString()===fr) && 
-                (d['NOMBRE COMPLETO'].toLowerCase().includes(fn))
-            );
+            let filtered = data.filter(d => (fa==='all'||d['AÑO'].toString()===fa) && (fm==='all'||d['MES'].toString()===fm) && (fr==='all'||d['REGIONAL'].toString()===fr) && (d['NOMBRE COMPLETO'].toLowerCase().includes(fn)));
             if(filtered.length > 0) {
                 let p = (filtered[0].AVANCE_REF * 100).toFixed(0);
                 document.getElementById('progText').innerText = p + "%";
@@ -88,7 +83,7 @@
         }
 
         function descargarCSV() {
-            if(rawCSV.length === 0) return alert("No hay datos cargados para exportar.");
+            if(rawCSV.length === 0) return alert("No hay datos");
             const ws = XLSX.utils.json_to_sheet(rawCSV);
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, "Data");
@@ -98,12 +93,9 @@
         function render(list) {
             const head = document.getElementById('tableHead'), body = document.getElementById('tableBody');
             let activeCats = [];
-            // Activar categorías si hay datos de cumplimiento
             for(let c in CFG) if(list.some(r => r[CFG[c][2]] !== null)) activeCats.push(c);
-            
             let avRef = list.length > 0 ? list[0].AVANCE_REF : 0;
 
-            // Ordenar por promedio de indicadores
             list.sort((a, b) => {
                 let sumA = 0, countA = 0, sumB = 0, countB = 0;
                 activeCats.forEach(c => {
@@ -116,9 +108,20 @@
 
             let headHtml = '<tr><th>Colaborador</th>';
             activeCats.forEach(c => {
-                let vals = list.map(r => r[CFG[c][2]]).filter(v => v !== null);
-                let rawAvg = vals.length > 0 ? (vals.reduce((a,b)=> (a===-1?1:a)+(b===-1?1:b),0)/vals.length) : 0;
-                headHtml += `<th>${c} <span class="avg-head" style="color:${getColor(rawAvg, avRef)}">${(rawAvg * 100).toFixed(0)}%</span></th>`;
+                // NUEVA LÓGICA AGREGADA: Suma de ejecutados / Suma de metas
+                let totalMeta = 0, totalEjec = 0;
+                list.forEach(r => {
+                    let m = r[CFG[c][0]], e = r[CFG[c][1]], ef = r[CFG[c][2]];
+                    if(ef !== null) {
+                        if(ef === -1) { // Caso Chulo: Se asume cumplimiento total
+                           totalMeta += (m || 1); totalEjec += (m || 1);
+                        } else {
+                           totalMeta += (m || 0); totalEjec += (e || 0);
+                        }
+                    }
+                });
+                let aggAvg = totalMeta > 0 ? (totalEjec / totalMeta) : 0;
+                headHtml += `<th>${c} <span class="avg-head" style="color:${getColor(aggAvg, avRef)}">${(aggAvg * 100).toFixed(0)}%</span></th>`;
             });
             head.innerHTML = headHtml + '</tr>';
 
@@ -129,8 +132,7 @@
                         let ef = r[CFG[c][2]], m = r[CFG[c][0]], e = r[CFG[c][1]];
                         if(ef === null) return '<td><span style="color:#eee">-</span></td>';
                         let color = getColor(ef, avRef), txt = ef === -1 ? '✔' : (ef*100).toFixed(0)+'%';
-                        // Logueos solo porcentaje, otros Meta/Real %
-                        if(c === 'Logueos') return `<td><span class="efe-val" style="color:${color}; font-size:12px;">${txt}</span></td>`;
+                        if(c === 'Logueos') return `<td><span class="efe-val" style="color:${color}">${txt}</span></td>`;
                         return `<td>${m||0} / ${e||0} <span class="efe-val" style="color:${color}">${txt}</span></td>`;
                     }).join('')}
                 </tr>
