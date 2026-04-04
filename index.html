@@ -165,25 +165,24 @@
                     let ef = r[CFG[c][2]], m = r[CFG[c][0]], e = r[CFG[c][1]];
                     if(ef !== null) {
                         cnt++;
-                        if(c.includes('Logueos') || c.includes('Deslogueos')) {
-                            totEf += (ef === -1 ? 1 : ef);
-                            sumM += (m||0);
-                            sumE += (e||0);
-                        } else {
-                            sumM += (m||0);
-                            sumE += (e||0);
-                            totEf += (ef === -1 ? 1 : ef);
-                        }
+                        totEf += (ef === -1 ? 1 : ef);
+                        sumM += (m||0);
+                        sumE += (e||0);
                     }
                 });
                 
                 let prom = cnt > 0 ? totEf/cnt : 0;
                 let textGlob = (c === 'rutas') ? `${sumE}/${sumM}` : `${sumM}/${sumE}`;
+                
+                // Color de encabezado con regla especial para Deslogueos
+                let headColor;
+                if(c === 'Deslogueos') headColor = (prom > 0.99) ? 'var(--green)' : 'var(--red)';
+                else headColor = getColor(prom, av);
 
                 headH += `<th>
                             <span style="display:block; color:var(--gray); font-size:10px;">${c.toUpperCase()}</span>
                             <div style="font-size:10px; color:var(--gray); font-weight:400; margin-bottom:-2px;">${textGlob}</div>
-                            <span style="display:block; font-size:13px; font-weight:800; color:${getColor(prom, av)}">${(prom*100).toFixed(0)}%</span>
+                            <span style="display:block; font-size:13px; font-weight:800; color:${headColor}">${(prom*100).toFixed(0)}%</span>
                           </th>`;
             });
             head.innerHTML = headH + '</tr>';
@@ -200,7 +199,16 @@
                     ${activeCats.map(c => {
                         let ef = r[CFG[c][2]], m = r[CFG[c][0]], e = r[CFG[c][1]];
                         if(ef === null) return '<td>-</td>';
-                        let color = getColor(ef, av), txt = ef === -1 ? '✔' : (ef*100).toFixed(0)+'%';
+                        
+                        // REGLA SOLICITADA: Deslogueos rojo si <= 99%
+                        let color;
+                        if(c === 'Deslogueos') {
+                            color = (ef === -1 || ef > 0.99) ? 'var(--green)' : 'var(--red)';
+                        } else {
+                            color = getColor(ef, av);
+                        }
+
+                        let txt = ef === -1 ? '✔' : (ef*100).toFixed(0)+'%';
                         let vD = (c === 'rutas') ? (e||0)+'/'+(m||0) : (m||0)+'/'+(e||0);
                         
                         return `<td>
